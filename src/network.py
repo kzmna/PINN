@@ -22,6 +22,7 @@ class Net(nn.Module):
         lr=1e-3,
         loss2=None,
         loss2_weight=0.1,
+        Smax=500.0
     ) -> None:
         super().__init__()
 
@@ -76,7 +77,7 @@ class Net(nn.Module):
         return out.detach().cpu().numpy()
 
 
-class NetDiscovery(Net):
+class PINN(Net):
     def __init__(
         self,
         input_dim,
@@ -93,3 +94,5 @@ class NetDiscovery(Net):
         )
 
         self.k = nn.Parameter(data=torch.tensor([0.]))
+        self.v_m = nn.Parameter(data=torch.tensor([0.]))
+        
