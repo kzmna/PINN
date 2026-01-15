@@ -74,7 +74,7 @@ def grinding_kinetics_2d(z_points, t_points, Smax, S0, k, L_m=10.0, T_max=1800):
             if z > 0:
                 # Численное интегрирование k/v_m
                 integrand = k / np.interp(z_segments, z_points, v_m[:, j])
-                integral = np.trapz(integrand, z_segments)
+                integral = np.trapezoid(integrand, z_segments)
             else:
                 integral = 0
             
