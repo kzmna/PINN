@@ -5,11 +5,9 @@ import torch.nn.functional as F
 class PINN(nn.Module):
     def __init__(
         self,
-        epochs,
-        lr,
-        n_units, # сколько нейронов на слое
-        # n_K=3,
-        # output_dim=3,
+        epochs=10000,
+        lr=0.001,
+        n_units=100, # сколько нейронов на слое
         S_max = 500, # м2/кг
         t_max=1800, # с
         L_max=10, # м
@@ -20,12 +18,12 @@ class PINN(nn.Module):
         self.epochs = epochs
         self.lr = lr
         self.n_units = n_units
-        # self.n_K=n_K
 
         self.S_max = S_max
         self.t_max = t_max
         self.L_max = L_max
         self.v_m = nn.Parameter(torch.tensor(1.0))
+        self.k = nn.Parameter(torch.tensor(.0))
 
         self.layers = nn.Sequential(
             nn.Linear(2, self.n_units),
@@ -39,6 +37,10 @@ class PINN(nn.Module):
             nn.Linear(self.n_units, 2)
         )
 
+    def loss(self):
+        pass
+        # TODO
+
     def forward(self, t, z):
         x = torch.cat([t, z], dim=1) # склеивание по столбцам, мб нужно torch.stack?
 
@@ -49,23 +51,38 @@ class PINN(nn.Module):
 
         return S, v_m
 
+    def fit(self):
+        pass
+        # TODO
+    
+    def predict(self):
+        pass
+        # TODO
+
 class PINN_MDN(nn.Module):
-    def __init__(self, n_components=3):
+    def __init__(
+        self, 
+        n_components=3,
+        n_units=100,
+        epochs=10000,
+        ):
         super().__init__()
 
         self.n_components = n_components
+        self.n_units=n_units
+        self.epochs=epochs
 
-        self.net = nn.Sequential(
-            nn.Linear(2, 100),
+        self.layers = nn.Sequential(
+            nn.Linear(2, n_units),
             nn.Tanh(),
 
-            nn.Linear(100, 100),
+            nn.Linear(n_units, n_units),
             nn.Tanh(),
 
-            nn.Linear(100, 100),
+            nn.Linear(n_units, n_units),
             nn.Tanh(),
 
-            nn.Linear(100, 100),
+            nn.Linear(n_units, n_units),
             nn.Tanh(),
         )
 
@@ -74,17 +91,23 @@ class PINN_MDN(nn.Module):
         self.fc_sigma = nn.Linear(100, n_components)
         self.fc_pi = nn.Linear(100, n_components)
 
-        # скорость
-        self.fc_v = nn.Linear(100, 1)
-
     def forward(self, t, z):
         x = torch.cat([t, z], dim=1)
-        h = self.net(x)
+        h = self.layers(x)
 
         mu = self.fc_mu(h)
         sigma = torch.exp(self.fc_sigma(h))  # > 0
         pi = F.softmax(self.fc_pi(h), dim=1)
 
-        v_m = self.fc_v(h)
+        return mu, sigma, pi
 
-        return mu, sigma, pi, v_m
+    def loss(self):
+        pass
+        # TODO
+    def fit(self):
+        pass
+        # TODO
+        
+    def predict(self):
+        pass
+        # TODO
