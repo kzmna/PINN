@@ -37,27 +37,76 @@ class PINN(nn.Module):
             nn.Linear(self.n_units, 2)
         )
 
-    def loss(self):
-        pass
-        # TODO
+    def pde_residual(self, t, z):
+        """
+        Вычисляет невязку уравнения:
+            ∂S/∂t + v_m * ∂S/∂z - k*(S_max - S) = 0
+        Использует autograd для вычисления производных.
+        """
+        t.requires_grad_(True)
+        z.requires_grad_(True)
+        S = self.forward(t, z)
+
+        # Первые производные S по t и z
+        S_t = torch.autograd.grad(S, t, grad_outputs=torch.ones_like(S),
+                                   create_graph=True, retain_graph=True)[0]
+        S_z = torch.autograd.grad(S, z, grad_outputs=torch.ones_like(S),
+                                   create_graph=True, retain_graph=True)[0]
+
+        residual = S_t + self.v_m * S_z - self.k * (self.S_max - S)
+        return residual
+
+
+    def loss(self, t_pde, z_pde, t_bc, z_bc, S_bc, t_ic, z_ic, S_ic,
+             lambda_pde=1.0, lambda_bc=1.0, lambda_ic=1.0):
+             """
+        Вычисляет полную функцию потерь.
+        
+        Аргументы:
+            t_pde, z_pde : коллокационные точки для PDE (тензоры)
+            t_bc, z_bc, S_bc : точки на границе (z=0), где задано S(0,t)=S_bc
+            t_ic, z_ic, S_ic : начальные условия (t=0)
+            lambda_* : веса компонент потерь
+        """
+        # 1. Потеря PDE
+        r = self.pde_residual(t_pde, z_pde)
+        loss_pde = torch.mean(r**2)
+
+        # 2. Граничное условие на входе (z=0)
+        S_pred_bc, _ = self.forward(t_bc, z_bc)
+        loss_bc = F.mse_loss(S_pred_bc, S_bc)
+
+        # 3. Начальное условие (t=0)
+        S_pred_ic, _ = self.forward(t_ic, z_ic)
+        loss_ic = F.mse_loss(S_pred_ic, S_ic)
+
+        total_loss = lambda_pde * loss_pde + lambda_bc * loss_bc + lambda_ic * loss_ic
+
+        return total_loss
+     
 
     def forward(self, t, z):
-        x = torch.cat([t, z], dim=1) # склеивание по столбцам, мб нужно torch.stack?
+
+        t_norm = t / self.t_max
+        z_norm = z / self.L_max
+
+        x = torch.cat([t_norm, z_norm], dim=1) # склеивание по столбцам, мб нужно torch.stack?
 
         out = self.layers(x)
 
         S = out[:, 0:1] # 1 столбец данных
-        v_m = out[:, 1:2] # 2 столбец
+        # v_m = out[:, 1:2] # 2 столбец
 
-        return S, v_m
+        return S
 
     def fit(self):
+        
         pass
-        # TODO
+        # TODO: дописать метод
     
     def predict(self):
         pass
-        # TODO
+        # TODO: дописать метод
 
 class PINN_MDN(nn.Module):
     def __init__(
