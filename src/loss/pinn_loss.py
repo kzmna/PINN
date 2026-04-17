@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
 
-def pinn_loss(model, t_pde, z_pde, t_bc, z_bc, S_bc, t_ic, z_ic, S_ic,
-             lambda_pde=1.0, lambda_bc=1.0, lambda_ic=1.0):
+def pinn_loss(model, t_pde, z_pde, t_bc, z_bc, S_bc, t_ic, z_ic, S_ic, t_real, z_real, S_real,
+             lambda_pde=1.0, lambda_bc=1.0, lambda_ic=1.0, lambda_mse=1.0):
         """
         
         Аргументы:
@@ -23,6 +23,10 @@ def pinn_loss(model, t_pde, z_pde, t_bc, z_bc, S_bc, t_ic, z_ic, S_ic,
         S_pred_ic = model.forward(t_ic, z_ic)
         loss_ic = F.mse_loss(S_pred_ic, S_ic)
 
-        total_loss = lambda_pde * loss_pde + lambda_bc * loss_bc + lambda_ic * loss_ic
+        # MSE
+        S_pred= model.forward(t_real, z_real)
+        loss_mse = F.mse_loss(S_pred, S_real)
+
+        total_loss = lambda_pde * loss_pde + lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_mse * loss_mse
 
         return total_loss
