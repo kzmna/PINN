@@ -27,18 +27,15 @@ class PINN(nn.Module):
 
         # обучаемые параметры
         # self.v_m = nn.Parameter(torch.tensor(0.0))
-        self.v_m = torch.tensor(0.7)
-        # self.k = nn.Parameter(torch.tensor(0.0))
-        self.k = torch.tensor(0.16)
-
-        # TODO: либо интегрировать константы, либо добавить MSE
-        # TODO: нарисовать график разброса предсказаний PINN
+        self.v_m = torch.tensor(0.2)
+        # self.k = nn.Parameter(torch.tensor(1.))
+        self.k = torch.tensor(0.12)
 
         self.layers = nn.Sequential(
             nn.Linear(2, self.n_units),
             nn.Tanh(),
-            #nn.Linear(self.n_units, self.n_units),
-            #nn.Tanh(),
+            nn.Linear(self.n_units, self.n_units),
+            nn.Tanh(),
             #nn.Linear(self.n_units, self.n_units),
             #nn.Tanh(),
             #nn.Linear(self.n_units, self.n_units),
@@ -61,8 +58,10 @@ class PINN(nn.Module):
         """
             ∂S/∂t + v_m * ∂S/∂z - k*(S_max - S) = 0
         """
-        t.requires_grad_(True)
-        z.requires_grad_(True)
+        t = t.clone().detach().requires_grad_(True)
+        z = z.clone().detach().requires_grad_(True)
+        # t.requires_grad_(True)
+        # z.requires_grad_(True)
 
         S = self.forward(t, z)
 
