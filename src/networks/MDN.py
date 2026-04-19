@@ -25,7 +25,9 @@ class MDN(nn.Module):
         h = self.layers(s_pred)
 
         pi = F.softmax(self.pi(h), dim=-1)
+
         mu = self.mu(h)
+
         sigma = torch.exp(self.sigma(h))
 
         # sigma = torch.clamp(sigma, min=1e-4, max=10)
@@ -35,6 +37,7 @@ class MDN(nn.Module):
 
     @torch.no_grad()
     def predict(self, S_pred):
+        self.eval()
         pi, mu, sigma = self.forward(S_pred)
 
         mean = torch.sum(pi * mu, dim=1)
