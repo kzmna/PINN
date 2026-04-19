@@ -52,8 +52,10 @@ def generate_dataset(
 
     S_train = torch.where(
         tau > 0,
-        S_max - (S_max - S0) * torch.exp(-k * tau),
-        torch.full_like(tau, S0)
+        # S_max - (S_max - S0) * torch.exp(-k * tau),
+        # torch.full_like(tau, S0),
+        S_max - (S_max - S0) * torch.exp(-k * z_train / v_m), # Зависит от Z
+        S_max - (S_max - S0) * torch.exp(-k * t_train)        # Зависит от T
     )
 
     # шум
@@ -76,8 +78,10 @@ def generate_dataset(
 
     S = torch.where(
         tau > 0,
-        S_max - (S_max - S0) * torch.exp(-k * tau),
-        torch.full_like(tau, S0)
+        # S_max - (S_max - S0) * torch.exp(-k * tau),
+        # torch.full_like(tau, S0),
+        S_max - (S_max - S0) * torch.exp(-k * Z / v_m), # Зависит от Z
+        S_max - (S_max - S0) * torch.exp(-k * T)        # Зависит от T
     )
 
     # шум
@@ -107,11 +111,11 @@ def generate_dataset(
         # testing
         "t_test": t_test,
         "z_test": z_test,
-        "S_test": S_test_noisy,
+        "S_test": S_test_noisy, # тут meshgrid
 
         # for plots
-        "T": T,
-        "Z": Z,
-        "S": S,
+        "T": T, # тут meshgrid
+        "Z": Z, # тут meshgrid
+        "S": S, # тут meshgrid
 
     }
