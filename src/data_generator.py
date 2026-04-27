@@ -28,7 +28,6 @@ def generate_dataset(
     # -------------------------
     # BC: z = 0
     # -------------------------
-    # t_bc = torch.linspace(0, t_max/3+1, n_bc)
     t_bc = torch.rand(n_bc, 1) * t_max
     z_bc = torch.zeros(n_bc, 1)
     S_bc = torch.full((n_bc, 1), S0)
@@ -37,23 +36,20 @@ def generate_dataset(
     # IC: t = 0
     # -------------------------
     t_ic = torch.zeros(n_ic, 1)
-    # z_ic = torch.linspace(0, z_max/3+1, n_ic)
     z_ic = torch.rand(n_ic, 1) * z_max
     S_ic = torch.full((n_ic, 1), S0)
 
     # -------------------------
     # Данные для data-driven
     # -------------------------
-    t_train = torch.rand(n_data, 1) * t_max/2
-    z_train = torch.rand(n_data, 1) * z_max/2
+    t_train = torch.rand(n_data, 1) * t_max/3
+    z_train = torch.rand(n_data, 1) * z_max/3
 
     # аналитическое решение
     tau = t_train - z_train / v_m
 
     S_train = torch.where(
         tau > 0,
-        # S_max - (S_max - S0) * torch.exp(-k * tau),
-        # torch.full_like(tau, S0),
         S_max - (S_max - S0) * torch.exp(-k * z_train / v_m), # Зависит от Z
         S_max - (S_max - S0) * torch.exp(-k * t_train)        # Зависит от T
     )
