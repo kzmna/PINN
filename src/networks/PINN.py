@@ -26,7 +26,8 @@ class PINN(nn.Module):
         self.L_max = L_max
 
         # обучаемые параметры
-        # self.v_m = nn.Parameter(torch.tensor(0.0))
+        # self.v_m = nn.Parameter(torch.tensor(0.5))
+
         self.v_m = torch.tensor(0.2)
         # self.k = nn.Parameter(torch.tensor(1.))
         self.k = torch.tensor(0.12)
@@ -60,8 +61,6 @@ class PINN(nn.Module):
         """
         t = t.clone().detach().requires_grad_(True)
         z = z.clone().detach().requires_grad_(True)
-        # t.requires_grad_(True)
-        # z.requires_grad_(True)
 
         S = self.forward(t, z)
 
