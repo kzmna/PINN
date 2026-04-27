@@ -1,51 +1,49 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
+
 
 class MDN(nn.Module):
-    def __init__(self, n_components=3):
+    def __init__(self, in_dim=3, n_components=1, hidden_dim=128):
+        """
+        """
         super().__init__()
 
-        hidden_dim = 100
         self.n_components = n_components
 
         self.layers = nn.Sequential(
-            nn.Linear(1, hidden_dim),
-            nn.Tanh(),
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.Tanh()
+            nn.ReLU()
         )
 
-        self.pi = nn.Linear(hidden_dim, n_components)
+        # self.pi = nn.Linear(hidden_dim, n_components)
         self.mu = nn.Linear(hidden_dim, n_components)
-        self.sigma = nn.Linear(hidden_dim, n_components)
+        self.log_sigma = nn.Linear(hidden_dim, n_components)
 
-    def forward(self, s_pred):
-        h = self.layers(s_pred)
+    def forward(self, x):
+        """
+        x: (batch, in_dim)
+        """
+        h = self.layers(x)
 
-        pi = F.softmax(self.pi(h), dim=-1)
+        # means
+        mu = self.mu(h)  # (B, K)
 
-        mu = self.mu(h)
+        # std
+        log_sigma = self.log_sigma(h)
+        sigma = F.softplus(log_sigma) + 1e-4
 
-        sigma = torch.exp(self.sigma(h))
-
-        # sigma = torch.clamp(sigma, min=1e-4, max=10)
-        sigma = F.softplus(self.sigma(h)) + 1e-6
-
-        return pi, mu, sigma
+        return mu.squeeze(-1), sigma.squeeze(-1)
 
     @torch.no_grad()
-    def predict(self, S_pred):
+    def predict(self, x):
         self.eval()
-        pi, mu, sigma = self.forward(S_pred)
 
-        mean = torch.sum(pi * mu, dim=1)
-        var = torch.sum(pi * (sigma**2 + mu**2), dim=1) - mean**2
+        mu, sigma = self.forward(x)
 
-        std = torch.sqrt(var)
+        lower = mu - 1.96 * sigma
+        upper = mu + 1.96 * sigma
 
-        lower = mean - 1.96 * std
-        upper = mean + 1.96 * std
-
-        return mean, lower, upper
+        return mu, lower, upper
