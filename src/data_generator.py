@@ -1,20 +1,22 @@
 import torch
+import numpy as np
 
 def generate_dataset(
     # == кол-во точек ==
     n_pde=1000,
-    n_data=100,
-    n_bc=500,
-    n_ic=500,
+    n_data=1000,
+    n_bc=1000,
+    n_ic=1000,
     n_test=100,
 
     # == константы ==
-    S_max=500.0,
-    S0=50.0,
-    k=0.12,
-    v_m=0.2,
-    t_max=1800.0,
-    z_max=10.0,
+    S_max=6.0,
+    S0=1.0,
+    k=0.87,
+    v_m=0.01,
+    t_max=408.0,
+    z_max=4.5,
+    Sbc=1.,
 
     # == параметры ==
     noise_std=10.0,
@@ -30,7 +32,7 @@ def generate_dataset(
     # -------------------------
     t_bc = torch.rand(n_bc, 1) * t_max
     z_bc = torch.zeros(n_bc, 1)
-    S_bc = torch.full((n_bc, 1), S0)
+    S_bc = torch.full((n_bc, 1), Sbc)
 
     # -------------------------
     # IC: t = 0
@@ -50,9 +52,13 @@ def generate_dataset(
 
     S_train = torch.where(
         tau > 0,
-        S_max - (S_max - S0) * torch.exp(-k * z_train / v_m), # Зависит от Z
+        S_max - (S_max - Sbc) * torch.exp(-k * z_train / v_m), # Зависит от Z
         S_max - (S_max - S0) * torch.exp(-k * t_train)        # Зависит от T
     )
+    # S_train = S_max - (S_max - Sbc) * torch.exp(-k*z_train/v_m)
+    # print(S_max.shape)
+    # print(S_bc.shape)
+
 
     # шум
     noise = noise_std * torch.randn_like(S_train)
@@ -76,9 +82,11 @@ def generate_dataset(
         tau > 0,
         # S_max - (S_max - S0) * torch.exp(-k * tau),
         # torch.full_like(tau, S0),
-        S_max - (S_max - S0) * torch.exp(-k * Z / v_m), # Зависит от Z
+        S_max - (S_max - Sbc) * torch.exp(-k * Z / v_m), # Зависит от Z
         S_max - (S_max - S0) * torch.exp(-k * T)        # Зависит от T
     )
+    # S = S_max - (S_max - Sbc) * torch.exp(-k*Z/v_m)
+    # S = S_max + (S0*(Z-v_m*T)-S_max) * np.exp(-k*T)
 
     # шум
     noise = noise_std * torch.randn_like(S)
@@ -103,6 +111,8 @@ def generate_dataset(
         "t_train": t_train,
         "z_train": z_train,
         "S_train": S_train_noisy.view(n_data, 1),
+        # "S_train": S_train.view(n_data, 1),
+
 
         # testing
         "t_test": t_test,
