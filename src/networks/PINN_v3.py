@@ -4,18 +4,20 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 
-class PINN_v2(nn.Module):
+class PINN_v3(nn.Module):
     def __init__(
         self,
         S_max = 500,
         n_units=100, # сколько нейронов на слое
-        k = 1
+        k = 0.0015
     ):
 
         super().__init__()
         
         self.n_units = n_units
         self.S_max = S_max
+        self.log_k = nn.Parameter(torch.tensor(-6.0))
+        self.log_D = nn.Parameter(torch.tensor(-7.0))
 
         # обучаемые параметры
         # self.v_m = nn.Parameter(torch.tensor(0.5))
@@ -35,7 +37,7 @@ class PINN_v2(nn.Module):
             nn.Linear(self.n_units, self.n_units),
             # nn.Tanh(),
             nn.ReLU(),
-            nn.Linear(self.n_units, 1)
+            nn.Linear(self.n_units, 2)
         )
 
     def forward(self, t, z, v):
@@ -47,28 +49,77 @@ class PINN_v2(nn.Module):
             v = v.unsqueeze(1)
 
         x = torch.cat([t, z, v], dim=1) # склеивание по столбцам
-        S = self.layers(x)
+        out = self.layers(x)
 
-        return S
+        S = out[:, 0:1]
+        eps = torch.sigmoid(out[:, 1:2])
+
+        return S, eps
 
     def pde_residual(self, t, z, v):
-        """
-            ∂S/∂t + v * ∂S/∂z - k*(S_max - S) = 0
-        """
+
         t = t.clone().detach().requires_grad_(True)
         z = z.clone().detach().requires_grad_(True)
 
-        S = self.forward(t, z, v)
+        S, eps = self.forward(t, z, v)
 
-        # Первые производные S по t и z
-        S_t = torch.autograd.grad(S, t, grad_outputs=torch.ones_like(S),
-                                   create_graph=True)[0]
-        S_z = torch.autograd.grad(S, z, grad_outputs=torch.ones_like(S),
-                                   create_graph=True)[0]
-        # residual = 1/29406750.0 * S_t  + v * 1/4.5 * S_z - self.k * (self.S_max - S)
-        residual = S_t  + v * S_z - self.k * (self.S_max - S)
+        k = torch.exp(self.log_k)
+        D = torch.exp(self.log_D)
 
-        return residual
+        # ===== S =====
+
+        S_t = torch.autograd.grad(
+            S, t,
+            grad_outputs=torch.ones_like(S),
+            create_graph=True
+        )[0]
+
+        S_z = torch.autograd.grad(
+            S, z,
+            grad_outputs=torch.ones_like(S),
+            create_graph=True
+        )[0]
+
+        S_zz = torch.autograd.grad(
+            S_z, z,
+            grad_outputs=torch.ones_like(S_z),
+            create_graph=True
+        )[0]
+
+        # ===== eps =====
+
+        eps_t = torch.autograd.grad(
+            eps, t,
+            grad_outputs=torch.ones_like(eps),
+            create_graph=True
+        )[0]
+
+        eps_z = torch.autograd.grad(
+            eps, z,
+            grad_outputs=torch.ones_like(eps),
+            create_graph=True
+        )[0]
+
+        eps_zz = torch.autograd.grad(
+            eps_z, z,
+            grad_outputs=torch.ones_like(eps_z),
+            create_graph=True
+        )[0]
+
+        residual_eps = (
+            eps_t
+            + v * eps_z
+            - D * eps_zz
+        )
+
+        residual_S = (
+            S_t
+            + v * S_z
+            - D * S_zz
+            - k * (self.S_max - S)
+        )
+
+        return residual_S, residual_eps
     
     @torch.no_grad()
     def predict(self, t, z, v):
